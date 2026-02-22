@@ -2,22 +2,79 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --gold: #d99a2b;
+    --gold-light: #efc94f;
+    --charcoal: #1f1f1f;
+    --charcoal-dark: #141414;
+    --charcoal-darker: #0a0a0a;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #3a3a3a #141414;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: #141414;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: #3a3a3a;
+    border-radius: 4px;
+  }
+
+  body {
+    @apply bg-charcoal-950 text-charcoal-100 font-body;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .btn-primary {
+    @apply bg-gold-400 text-charcoal-950 px-6 py-3 font-semibold rounded-lg
+      hover:bg-gold-300 transition-colors duration-200 disabled:opacity-50
+      disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply border border-gold-400 text-gold-400 px-6 py-3 font-semibold rounded-lg
+      hover:bg-gold-400 hover:text-charcoal-950 transition-colors duration-200;
+  }
+
+  .btn-ghost {
+    @apply text-charcoal-200 px-6 py-3 font-semibold rounded-lg
+      hover:bg-charcoal-800 transition-colors duration-200;
+  }
+
+  .input-field {
+    @apply w-full bg-charcoal-800 border border-charcoal-600 rounded-lg px-4 py-3
+      text-charcoal-100 placeholder:text-charcoal-400
+      focus:outline-none focus:border-gold-400 focus:ring-1 focus:ring-gold-400
+      transition-colors duration-200;
+  }
+
+  .card {
+    @apply bg-charcoal-900 border border-charcoal-700 rounded-xl overflow-hidden
+      hover:border-charcoal-600 transition-colors duration-200;
+  }
+
+  .gold-text {
+    @apply text-transparent bg-clip-text bg-gold-gradient;
+  }
+
+  .shimmer {
+    @apply bg-gradient-to-r from-charcoal-800 via-charcoal-700 to-charcoal-800
+      bg-[length:200%_100%] animate-shimmer;
+  }
 }
 
 @layer utilities {

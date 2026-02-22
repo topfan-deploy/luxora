@@ -1,101 +1,156 @@
-import Image from "next/image";
+export const dynamic = "force-dynamic";
 
-export default function Home() {
+import { prisma } from "@/lib/prisma";
+import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
+import HeroSection from "@/components/home/HeroSection";
+import CategoryShowcase from "@/components/home/CategoryShowcase";
+import FeaturedProducts from "@/components/home/FeaturedProducts";
+import NewsletterSection from "@/components/home/NewsletterSection";
+import { Truck, Shield, Award, Headphones } from "lucide-react";
+
+async function getFeaturedProducts() {
+  try {
+    const products = await prisma.product.findMany({
+      where: {
+        isFeatured: true,
+        isActive: true,
+      },
+      include: {
+        images: {
+          select: {
+            url: true,
+            alt: true,
+            isPrimary: true,
+          },
+        },
+        category: {
+          select: {
+            name: true,
+            slug: true,
+          },
+        },
+        reviews: {
+          select: {
+            rating: true,
+          },
+        },
+      },
+      take: 8,
+      orderBy: { createdAt: "desc" },
+    });
+
+    return products.map((product) => {
+      const ratings = product.reviews.map((r) => r.rating);
+      const avgRating =
+        ratings.length > 0
+          ? ratings.reduce((sum, r) => sum + r, 0) / ratings.length
+          : 0;
+
+      return {
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        price: product.price,
+        compareAt: product.compareAt,
+        stock: product.stock,
+        images: product.images,
+        category: product.category,
+        avgRating: Math.round(avgRating * 10) / 10,
+        reviewCount: ratings.length,
+      };
+    });
+  } catch {
+    // Gracefully handle DB connection failures
+    return [];
+  }
+}
+
+const whyChooseFeatures = [
+  {
+    icon: Truck,
+    title: "Free Shipping",
+    description:
+      "Enjoy free standard shipping on all orders over $50. Fast, reliable delivery right to your door.",
+  },
+  {
+    icon: Shield,
+    title: "Secure Payments",
+    description:
+      "Shop with confidence. Your transactions are protected with industry-leading encryption.",
+  },
+  {
+    icon: Award,
+    title: "Premium Quality",
+    description:
+      "Every product is carefully vetted and curated to meet our high standards of excellence.",
+  },
+  {
+    icon: Headphones,
+    title: "24/7 Support",
+    description:
+      "Our dedicated team is here around the clock to help with any questions or concerns.",
+  },
+];
+
+export default async function HomePage() {
+  const featuredProducts = await getFeaturedProducts();
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <>
+      <Header />
+      <main className="min-h-screen">
+        {/* Hero */}
+        <HeroSection />
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
+        {/* Featured Categories */}
+        <CategoryShowcase />
+
+        {/* Featured Products */}
+        <FeaturedProducts products={featuredProducts} />
+
+        {/* Why Choose Luxora */}
+        <section className="py-16 lg:py-24">
+          <div className="container mx-auto px-4">
+            {/* Section Header */}
+            <div className="text-center mb-12">
+              <h2 className="font-heading text-3xl lg:text-4xl font-bold text-charcoal-100">
+                Why Choose <span className="gold-text">Luxora</span>
+              </h2>
+              <p className="mt-4 text-charcoal-400 max-w-2xl mx-auto">
+                We go above and beyond to deliver an exceptional shopping experience.
+              </p>
+            </div>
+
+            {/* Features Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {whyChooseFeatures.map((feature) => {
+                const IconComponent = feature.icon;
+                return (
+                  <div
+                    key={feature.title}
+                    className="bg-charcoal-900 border border-charcoal-700 rounded-xl p-6 text-center hover:border-charcoal-600 transition-colors duration-200"
+                  >
+                    <div className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-charcoal-800 mb-5">
+                      <IconComponent className="h-6 w-6 text-gold-400" />
+                    </div>
+                    <h3 className="font-heading text-lg font-semibold text-charcoal-100 mb-2">
+                      {feature.title}
+                    </h3>
+                    <p className="text-sm text-charcoal-400 leading-relaxed">
+                      {feature.description}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* Newsletter */}
+        <NewsletterSection />
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      <Footer />
+    </>
   );
 }
