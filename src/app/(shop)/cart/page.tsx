@@ -7,8 +7,7 @@ import { useCart } from "@/hooks/useCart";
 import { formatPrice } from "@/lib/utils/format";
 
 const ESTIMATED_TAX_RATE = 0.08;
-const ESTIMATED_SHIPPING = 9.99;
-const FREE_SHIPPING_THRESHOLD = 150;
+const FREE_SHIPPING_THRESHOLD = 50;
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, itemCount, subtotal } = useCart();
@@ -16,7 +15,7 @@ export default function CartPage() {
   const shipping =
     subtotal >= FREE_SHIPPING_THRESHOLD || items.length === 0
       ? 0
-      : ESTIMATED_SHIPPING;
+      : 9.99;
   const tax = subtotal * ESTIMATED_TAX_RATE;
   const total = subtotal + shipping + tax;
 
@@ -224,8 +223,9 @@ export default function CartPage() {
 
               {shipping > 0 && (
                 <p className="text-xs text-charcoal-400">
-                  Free shipping on orders over{" "}
-                  {formatPrice(FREE_SHIPPING_THRESHOLD)}
+                  Free standard shipping on orders over{" "}
+                  {formatPrice(FREE_SHIPPING_THRESHOLD)}.
+                  Express &amp; overnight options at checkout.
                 </p>
               )}
 

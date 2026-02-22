@@ -46,6 +46,7 @@ interface ShippingAddress {
 }
 
 type PaymentMethodType = "CARD" | "PAYPAL" | "MPESA" | "MTN_MOMO";
+type DeliveryMethodType = "STANDARD" | "EXPRESS" | "OVERNIGHT";
 
 const STEPS = [
   { id: 1, label: "Shipping", icon: MapPin },
@@ -54,8 +55,40 @@ const STEPS = [
 ] as const;
 
 const TAX_RATE = 0.08;
-const FREE_SHIPPING_THRESHOLD = 50;
-const SHIPPING_COST = 9.99;
+
+const DELIVERY_METHODS: {
+  value: DeliveryMethodType;
+  label: string;
+  description: string;
+  deliveryTime: string;
+  cost: number;
+  freeThreshold: number | null;
+}[] = [
+  {
+    value: "STANDARD",
+    label: "Standard Shipping",
+    description: "Reliable delivery at the best price",
+    deliveryTime: "5-7 business days",
+    cost: 9.99,
+    freeThreshold: 50,
+  },
+  {
+    value: "EXPRESS",
+    label: "Express Shipping",
+    description: "Faster delivery for when you need it sooner",
+    deliveryTime: "2-3 business days",
+    cost: 19.99,
+    freeThreshold: 150,
+  },
+  {
+    value: "OVERNIGHT",
+    label: "Overnight Shipping",
+    description: "Get it by tomorrow — order before 2 PM",
+    deliveryTime: "Next business day",
+    cost: 34.99,
+    freeThreshold: null,
+  },
+];
 
 const INITIAL_ADDRESS: ShippingAddress = {
   firstName: "",
@@ -368,14 +401,22 @@ function StripeInnerForm({
 // Order Summary sidebar
 // ---------------------------------------------------------------------------
 
-function OrderSummary({ items }: { items: CartItem[] }) {
+function OrderSummary({
+  items,
+  deliveryMethod,
+}: {
+  items: CartItem[];
+  deliveryMethod: DeliveryMethodType;
+}) {
   const subtotal = items.reduce(
     (sum, item) => sum + item.product.price * item.quantity,
     0
   );
   const tax = subtotal * TAX_RATE;
-  const shipping =
-    subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
+  const delivery = DELIVERY_METHODS.find((d) => d.value === deliveryMethod)!;
+  const shippingFree =
+    delivery.freeThreshold !== null && subtotal >= delivery.freeThreshold;
+  const shipping = shippingFree ? 0 : delivery.cost;
   const total = subtotal + tax + shipping;
 
   return (
@@ -427,14 +468,22 @@ function OrderSummary({ items }: { items: CartItem[] }) {
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-charcoal-400 flex items-center gap-1.5">
-            <Truck className="h-3.5 w-3.5" /> Shipping
+            <Truck className="h-3.5 w-3.5" /> {delivery.label}
           </span>
           <span className="text-charcoal-200">
-            {shipping === 0 ? (
+            {shippingFree ? (
               <span className="text-green-400">Free</span>
             ) : (
               formatPrice(shipping)
             )}
+          </span>
+        </div>
+        <div className="flex justify-between text-sm">
+          <span className="text-charcoal-400">
+            Est. delivery
+          </span>
+          <span className="text-charcoal-300 text-xs">
+            {delivery.deliveryTime}
           </span>
         </div>
         <div className="flex justify-between text-sm">
@@ -451,10 +500,10 @@ function OrderSummary({ items }: { items: CartItem[] }) {
         </div>
       </div>
 
-      {subtotal < FREE_SHIPPING_THRESHOLD && (
+      {!shippingFree && delivery.freeThreshold !== null && (
         <p className="mt-4 text-xs text-charcoal-400 text-center">
-          Add {formatPrice(FREE_SHIPPING_THRESHOLD - subtotal)} more for free
-          shipping
+          Add {formatPrice(delivery.freeThreshold - subtotal)} more for free{" "}
+          {delivery.label.toLowerCase()}
         </p>
       )}
     </div>
@@ -479,6 +528,8 @@ export default function CheckoutPage() {
   const [addressErrors, setAddressErrors] = useState<
     Record<string, string>
   >({});
+  const [deliveryMethod, setDeliveryMethod] =
+    useState<DeliveryMethodType>("STANDARD");
   const [paymentMethod, setPaymentMethod] =
     useState<PaymentMethodType>("CARD");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -572,6 +623,7 @@ export default function CheckoutPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           shippingAddress,
+          deliveryMethod,
           paymentMethod,
           phoneNumber:
             paymentMethod === "MPESA" || paymentMethod === "MTN_MOMO"
@@ -835,6 +887,94 @@ export default function CheckoutPage() {
                     />
                   </div>
                 </div>
+
+                {/* Delivery Method */}
+                <div className="mt-8">
+                  <h3 className="text-lg font-heading font-semibold text-charcoal-100 mb-4 flex items-center gap-2">
+                    <Truck className="h-5 w-5 text-gold-400" />
+                    Delivery Method
+                  </h3>
+                  <div className="space-y-3">
+                    {DELIVERY_METHODS.map((method) => {
+                      const subtotal = cartItems.reduce(
+                        (sum, item) => sum + item.product.price * item.quantity,
+                        0
+                      );
+                      const isFree =
+                        method.freeThreshold !== null &&
+                        subtotal >= method.freeThreshold;
+
+                      return (
+                        <label
+                          key={method.value}
+                          className={cn(
+                            "flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200",
+                            deliveryMethod === method.value
+                              ? "border-gold-400 bg-gold-400/5"
+                              : "border-charcoal-700 hover:border-charcoal-600 bg-charcoal-800/50"
+                          )}
+                        >
+                          <input
+                            type="radio"
+                            name="deliveryMethod"
+                            value={method.value}
+                            checked={deliveryMethod === method.value}
+                            onChange={() => setDeliveryMethod(method.value)}
+                            className="sr-only"
+                          />
+                          <div
+                            className={cn(
+                              "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
+                              deliveryMethod === method.value
+                                ? "border-gold-400"
+                                : "border-charcoal-500"
+                            )}
+                          >
+                            {deliveryMethod === method.value && (
+                              <div className="w-2.5 h-2.5 rounded-full bg-gold-400" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-charcoal-100">
+                                {method.label}
+                              </p>
+                              {isFree && (
+                                <span className="text-xs font-semibold text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full">
+                                  FREE
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-charcoal-400">
+                              {method.description}
+                            </p>
+                            <p className="text-xs text-charcoal-500 mt-1">
+                              {method.deliveryTime}
+                              {method.freeThreshold !== null && !isFree && (
+                                <span>
+                                  {" "}
+                                  &middot; Free on orders over{" "}
+                                  {formatPrice(method.freeThreshold)}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            {isFree ? (
+                              <p className="text-sm font-semibold text-green-400">
+                                Free
+                              </p>
+                            ) : (
+                              <p className="text-sm font-semibold text-charcoal-100">
+                                {formatPrice(method.cost)}
+                              </p>
+                            )}
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -992,6 +1132,27 @@ export default function CheckoutPage() {
                   )}
                 </div>
 
+                {/* Delivery method review */}
+                <div className="mb-6 p-4 bg-charcoal-800/50 rounded-xl border border-charcoal-700">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium text-charcoal-300 uppercase tracking-wider">
+                      Delivery Method
+                    </h3>
+                    <button
+                      onClick={() => setCurrentStep(1)}
+                      className="text-sm text-gold-400 hover:text-gold-300 transition-colors"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                  <p className="text-charcoal-200">
+                    {DELIVERY_METHODS.find((d) => d.value === deliveryMethod)?.label}
+                  </p>
+                  <p className="text-charcoal-400 text-sm">
+                    {DELIVERY_METHODS.find((d) => d.value === deliveryMethod)?.deliveryTime}
+                  </p>
+                </div>
+
                 {/* Payment method review */}
                 <div className="mb-6 p-4 bg-charcoal-800/50 rounded-xl border border-charcoal-700">
                   <div className="flex items-center justify-between mb-3">
@@ -1124,7 +1285,7 @@ export default function CheckoutPage() {
 
         {/* Order Summary Sidebar */}
         <div className="lg:col-span-1">
-          <OrderSummary items={cartItems} />
+          <OrderSummary items={cartItems} deliveryMethod={deliveryMethod} />
         </div>
       </div>
     </div>

@@ -8,8 +8,15 @@ import { stripe } from "@/lib/stripe";
 import { getMobileMoneyAdapter } from "@/lib/payments/mobile-money/adapter";
 
 const TAX_RATE = 0.08;
-const FREE_SHIPPING_THRESHOLD = 50;
-const SHIPPING_COST = 9.99;
+
+const DELIVERY_OPTIONS: Record<
+  string,
+  { cost: number; freeThreshold: number | null; label: string }
+> = {
+  STANDARD: { cost: 9.99, freeThreshold: 50, label: "Standard Shipping (5-7 days)" },
+  EXPRESS: { cost: 19.99, freeThreshold: 150, label: "Express Shipping (2-3 days)" },
+  OVERNIGHT: { cost: 34.99, freeThreshold: null, label: "Overnight Shipping (next day)" },
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,6 +39,11 @@ export async function POST(request: NextRequest) {
 
     const { shippingAddress, billingAddress, paymentMethod, phoneNumber, notes } =
       validation.data;
+
+    const deliveryMethod =
+      body.deliveryMethod && DELIVERY_OPTIONS[body.deliveryMethod]
+        ? body.deliveryMethod
+        : "STANDARD";
 
     // Fetch user's cart with product details
     const cart = await prisma.cart.findUnique({
@@ -83,7 +95,11 @@ export async function POST(request: NextRequest) {
       0
     );
     const tax = parseFloat((subtotal * TAX_RATE).toFixed(2));
-    const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_COST;
+    const deliveryOption = DELIVERY_OPTIONS[deliveryMethod];
+    const shippingFree =
+      deliveryOption.freeThreshold !== null &&
+      subtotal >= deliveryOption.freeThreshold;
+    const shipping = shippingFree ? 0 : deliveryOption.cost;
     const total = parseFloat((subtotal + tax + shipping).toFixed(2));
     const orderNumber = generateOrderNumber();
 
