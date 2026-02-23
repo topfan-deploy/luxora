@@ -24,94 +24,101 @@ type SearchParams = {
 };
 
 async function getProducts(searchParams: SearchParams) {
-  const page = Math.max(1, parseInt(searchParams.page || "1", 10));
-  const limit = 12;
-  const skip = (page - 1) * limit;
+  try {
+    const page = Math.max(1, parseInt(searchParams.page || "1", 10));
+    const limit = 12;
+    const skip = (page - 1) * limit;
 
-  const where: Prisma.ProductWhereInput = {
-    isActive: true,
-  };
+    const where: Prisma.ProductWhereInput = {
+      isActive: true,
+    };
 
-  if (searchParams.category) {
-    where.category = { slug: searchParams.category };
-  }
-
-  if (searchParams.minPrice || searchParams.maxPrice) {
-    where.price = {};
-    if (searchParams.minPrice) {
-      where.price.gte = parseFloat(searchParams.minPrice);
+    if (searchParams.category) {
+      where.category = { slug: searchParams.category };
     }
-    if (searchParams.maxPrice) {
-      where.price.lte = parseFloat(searchParams.maxPrice);
+
+    if (searchParams.minPrice || searchParams.maxPrice) {
+      where.price = {};
+      if (searchParams.minPrice) {
+        where.price.gte = parseFloat(searchParams.minPrice);
+      }
+      if (searchParams.maxPrice) {
+        where.price.lte = parseFloat(searchParams.maxPrice);
+      }
     }
-  }
 
-  if (searchParams.query) {
-    where.OR = [
-      { name: { contains: searchParams.query, mode: "insensitive" } },
-      { description: { contains: searchParams.query, mode: "insensitive" } },
-    ];
-  }
+    if (searchParams.query) {
+      where.OR = [
+        { name: { contains: searchParams.query, mode: "insensitive" } },
+        { description: { contains: searchParams.query, mode: "insensitive" } },
+      ];
+    }
 
-  let orderBy: Prisma.ProductOrderByWithRelationInput;
-  switch (searchParams.sortBy) {
-    case "price-asc":
-      orderBy = { price: "asc" };
-      break;
-    case "price-desc":
-      orderBy = { price: "desc" };
-      break;
-    case "newest":
-      orderBy = { createdAt: "desc" };
-      break;
-    case "popular":
-      orderBy = { orderItems: { _count: "desc" } };
-      break;
-    case "rating":
-      orderBy = { reviews: { _count: "desc" } };
-      break;
-    default:
-      orderBy = { createdAt: "desc" };
-  }
+    let orderBy: Prisma.ProductOrderByWithRelationInput;
+    switch (searchParams.sortBy) {
+      case "price-asc":
+        orderBy = { price: "asc" };
+        break;
+      case "price-desc":
+        orderBy = { price: "desc" };
+        break;
+      case "newest":
+        orderBy = { createdAt: "desc" };
+        break;
+      case "popular":
+        orderBy = { orderItems: { _count: "desc" } };
+        break;
+      case "rating":
+        orderBy = { reviews: { _count: "desc" } };
+        break;
+      default:
+        orderBy = { createdAt: "desc" };
+    }
 
-  const [products, total] = await Promise.all([
-    prisma.product.findMany({
-      where,
-      include: {
-        images: { orderBy: { position: "asc" } },
-        category: true,
-        reviews: { select: { rating: true } },
-      },
-      orderBy,
-      skip,
-      take: limit,
-    }),
-    prisma.product.count({ where }),
-  ]);
+    const [products, total] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        include: {
+          images: { orderBy: { position: "asc" } },
+          category: true,
+          reviews: { select: { rating: true } },
+        },
+        orderBy,
+        skip,
+        take: limit,
+      }),
+      prisma.product.count({ where }),
+    ]);
 
-  const productsWithStats = products.map((product) => {
-    const reviewCount = product.reviews.length;
-    const avgRating =
-      reviewCount > 0
-        ? product.reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount
-        : 0;
+    const productsWithStats = products.map((product) => {
+      const reviewCount = product.reviews.length;
+      const avgRating =
+        reviewCount > 0
+          ? product.reviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount
+          : 0;
+
+      return {
+        ...product,
+        avgRating: Math.round(avgRating * 10) / 10,
+        reviewCount,
+      };
+    });
 
     return {
-      ...product,
-      avgRating: Math.round(avgRating * 10) / 10,
-      reviewCount,
+      data: productsWithStats,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     };
-  });
-
-  return {
-    data: productsWithStats,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
+  } catch {
+    return {
+      data: [],
+      pagination: { page: 1, limit: 12, total: 0, totalPages: 0 },
+    };
+  }
 }
 
 async function getCategories() {
