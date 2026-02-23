@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { SlidersHorizontal, X, ChevronDown, ChevronUp } from "lucide-react";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -45,7 +45,7 @@ export default function ProductFilters({ categories }: ProductFiltersProps) {
   const debouncedMaxPrice = useDebounce(maxPrice, 500);
 
   const updateSearchParams = useCallback(
-    (updates: Record<string, string | null>) => {
+    (updates: Record<string, string | null>, resetPage = true) => {
       const params = new URLSearchParams(searchParams.toString());
       Object.entries(updates).forEach(([key, value]) => {
         if (value === null || value === "") {
@@ -54,13 +54,23 @@ export default function ProductFilters({ categories }: ProductFiltersProps) {
           params.set(key, value);
         }
       });
-      params.delete("page");
+      if (resetPage) {
+        params.delete("page");
+      }
       router.push(`${pathname}?${params.toString()}`, { scroll: false });
     },
     [router, pathname, searchParams]
   );
 
+  const prevMinRef = useRef(debouncedMinPrice);
+  const prevMaxRef = useRef(debouncedMaxPrice);
+
   useEffect(() => {
+    if (prevMinRef.current === debouncedMinPrice && prevMaxRef.current === debouncedMaxPrice) {
+      return;
+    }
+    prevMinRef.current = debouncedMinPrice;
+    prevMaxRef.current = debouncedMaxPrice;
     updateSearchParams({
       minPrice: debouncedMinPrice || null,
       maxPrice: debouncedMaxPrice || null,
